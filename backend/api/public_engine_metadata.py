@@ -29,6 +29,8 @@ def _public_routing_reason(status: object, diagnostic: object) -> str:
         if " GB VRAM; this engine wants about " in private:
             return _ACCELERATOR_LOW_VRAM
         return _ACCELERATOR_ADVISORY
+    if status == "unavailable":
+        return str(diagnostic) if isinstance(diagnostic, str) and diagnostic else _ROUTING_UNAVAILABLE
     return _ROUTING_BY_STATUS.get(status, _ROUTING_UNAVAILABLE)
 
 

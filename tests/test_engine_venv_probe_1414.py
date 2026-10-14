@@ -54,6 +54,15 @@ def test_a_timeout_is_unproven_not_a_failure(probe, monkeypatch):
     )
 
 
+def test_a_probe_failure_preserves_its_reason(probe, monkeypatch):
+    def _raise(*a, **kw):
+        raise subprocess.CalledProcessError(1, "python", stderr="torch missing")
+
+    monkeypatch.setattr(probe.subprocess, "run", _raise)
+    with pytest.raises(subprocess.CalledProcessError):
+        probe.venv_can_import("python", "import anything", engine="indextts", logger=logger)
+
+
 def test_a_real_import_failure_is_still_no(probe):
     # Proven negative: the interpreter ran and the import raised.
     verdict = probe.venv_can_import(
@@ -115,6 +124,7 @@ def test_a_useless_bound_is_ignored(probe, monkeypatch, bad):
 
 @pytest.fixture
 def indextts_bootstrap(monkeypatch, tmp_path):
+    pytest.importorskip("torch")
     from engines.indextts import bootstrap
 
     bootstrap.invalidate()
