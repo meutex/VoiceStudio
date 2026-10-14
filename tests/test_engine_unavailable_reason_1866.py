@@ -225,3 +225,9 @@ def test_the_next_step_matches_whether_the_app_can_install_it(diagnostic, one_cl
 def test_rows_without_the_install_field_keep_the_catalogue_wording():
     # ASR / LLM / translation rows carry no one_click_install field.
     assert "Model Catalogue" in _reason_for("transformers not installed")
+
+
+def test_unavailable_routing_reason_can_surface_the_real_probe_failure():
+    assert _reason_for("probe failed: dedicated engine venv torch import missing") == (
+        "This engine's package isn't installed yet. Install it from Model Catalogue."
+    )
