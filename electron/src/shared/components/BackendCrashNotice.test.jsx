@@ -191,6 +191,45 @@ describe('BackendCrashNotice — sentinel evidence gate (#1375)', () => {
     expect(dialog.textContent).not.toMatch(/GPU driver/i);
   });
 
+  // #1793441979: exit code 0xFFFFFFFF / -1 means the process never produced a
+  // real exit code. That is not evidence of an outside killer, so the app must
+  // not blame security software or the GPU — say only that the recorded
+  // evidence cannot attribute the exit.
+  it('explains an unattributed exit instead of naming a cause', async () => {
+    getUnacknowledgedBackendCrash.mockResolvedValue({
+      ...MARKER,
+      exit_code: 4294967295, // unsigned 0xFFFFFFFF
+      signal: null,
+      last_stderr: 'INFO generating audio',
+    });
+    render(<BackendCrashNotice />);
+    fireEvent.click(await screen.findByRole('button', { name: /view crash details/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toMatch(/cannot attribute/i);
+    expect(dialog.textContent).not.toMatch(
+      /GPU driver|compute stack|VRAM|ended from outside|security software|antivirus/i,
+    );
+    // An exit code IS evidence, so the one-click report stays.
+    expect(screen.getByText('Report this bug')).toBeInTheDocument();
+  });
+
+  it('keeps the existing explanation when the tail carries a Python traceback', async () => {
+    getUnacknowledgedBackendCrash.mockResolvedValue({
+      ...MARKER,
+      exit_code: -1, // signed 0xFFFFFFFF
+      signal: null,
+      last_stderr:
+        'Traceback (most recent call last):\n  File "app.py", line 10, in run\nRuntimeError: boom',
+    });
+    render(<BackendCrashNotice />);
+    fireEvent.click(await screen.findByRole('button', { name: /view crash details/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).not.toMatch(/cannot attribute/i);
+    expect(dialog.textContent).toMatch(/VRAM|flush the TTS model/i);
+  });
+
   it('offers no cause for a sentinel marker, which cannot know there was one', async () => {
     getUnacknowledgedBackendCrash.mockResolvedValue({
       ...MARKER,

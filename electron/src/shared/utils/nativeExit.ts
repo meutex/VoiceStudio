@@ -24,6 +24,12 @@ const NT_FAULTS = new Map<number, string>([
 // SIGKILL have their own handling elsewhere.
 const FAULT_SIGNALS: ReadonlySet<number> = new Set([4, 11]);
 
+// Exit status 0xFFFFFFFF (unsigned) / -1 (signed) is what the OS reports when
+// the process never produced a real exit code. It carries no evidence of what
+// ended it, so describeExitCode shows the hex form for readability but asserts
+// no cause.
+const NO_STATUS = 0xffff_ffff;
+
 /** The value itself when it is a finite number, otherwise null. */
 function finiteOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -52,9 +58,10 @@ export function describeExitCode(
   const raw = finiteOrNull(code);
   if (raw === null) return unknownLabel;
   const name = ntStatusName(raw);
-  if (name === null) return String(raw);
-  const hex = (normalizeExitCode(raw) ?? 0).toString(16).toUpperCase().padStart(8, '0');
-  return `${raw} (0x${hex} ${name})`;
+  const unsigned = normalizeExitCode(raw);
+  if (name === null && unsigned !== NO_STATUS) return String(raw);
+  const hex = (unsigned ?? 0).toString(16).toUpperCase().padStart(8, '0');
+  return name === null ? `${raw} (0x${hex})` : `${raw} (0x${hex} ${name})`;
 }
 
 export function isNativeFaultExit(death: {
